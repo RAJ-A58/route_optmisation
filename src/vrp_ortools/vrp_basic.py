@@ -4,19 +4,16 @@ from ortools.constraint_solver import pywrapcp
 
 
 def load_data():
-    """
-    Load distance matrix from synthetic VRP data.
-    """
+    # Load data from JSON file
     with open("data/synthetic/vrp_6_nodes.json", "r") as f:
         data = json.load(f)
 
     return data["distance_matrix"]
+    #Return only the distance matrix
 
 
 def print_solution(manager, routing, solution):
-    """
-    Prints route and total distance.
-    """
+   # Print the solution of the routing problem
     index = routing.Start(0)
     route = []
     total_distance = 0

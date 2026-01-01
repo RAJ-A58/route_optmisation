@@ -79,12 +79,12 @@ def process_and_split():
             demands.append(demand)
 
         if bad_rows:
-            print(f"⚠️  Skipped {len(bad_rows)} invalid rows")
+            print(f"    Skipped {len(bad_rows)} invalid rows")
             for r in bad_rows[:5]:
                 print("   Bad row:", r)
 
         if len(locations) == 0:
-            print("❌ No valid locations found — skipping dispatch")
+            print("     No valid locations found — skipping dispatch")
             failed_dispatches.append((dispatch_location, "No valid coordinates"))
             continue
 
@@ -96,7 +96,7 @@ def process_and_split():
         locations = list(unique.keys())
         demands = list(unique.values())
 
-        print(f"✔ Valid locations after cleanup: {len(locations)}")
+        print(f"    Valid locations after cleanup: {len(locations)}")
 
         # Depot demand must be zero
         demands[0] = 0
@@ -105,7 +105,7 @@ def process_and_split():
         try:
             distance_matrix = build_osrm_distance_matrix(locations)
         except Exception as e:
-            print("❌ OSRM FAILED")
+            print("   OSRM FAILED")
             print("   Reason:", e)
             print("   Total locations:", len(locations))
             print("   Sample coordinates:", locations[:5])
@@ -127,16 +127,16 @@ def process_and_split():
         with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
-        print(f"✅ Saved: {output_path}")
+        print(f"Saved: {output_path}")
 
     print("\n=== PROCESSING COMPLETE ===")
 
     if failed_dispatches:
-        print("\n❌ Failed dispatches summary:")
+        print("\nFailed dispatches summary:")
         for name, reason in failed_dispatches:
             print(f" - {name}: {reason}")
     else:
-        print("\n🎉 All dispatches processed successfully!")
+        print("\nAll dispatches processed successfully!")
 
 
 if __name__ == "__main__":

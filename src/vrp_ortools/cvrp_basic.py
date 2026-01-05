@@ -1,11 +1,9 @@
 import json
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
-
 def load_data(path):
     with open(path, "r") as f:
         return json.load(f)
-
 
 def solve_cvrp(data):
     num_nodes = len(data["distance_matrix"])
@@ -19,7 +17,6 @@ def solve_cvrp(data):
 
     routing = pywrapcp.RoutingModel(manager)
 
-    # -------- Distance callback --------
     def distance_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
@@ -28,7 +25,6 @@ def solve_cvrp(data):
     transit_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_index)
 
-    # -------- Demand callback --------
     def demand_callback(from_index):
         from_node = manager.IndexToNode(from_index)
         return data["demands"][from_node]
@@ -43,7 +39,7 @@ def solve_cvrp(data):
         "Capacity"
     )
 
-    # -------- Search parameters --------
+    # Search parameters 
     search_params = pywrapcp.DefaultRoutingSearchParameters()
     search_params.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
@@ -54,7 +50,7 @@ def solve_cvrp(data):
     if solution:
         print_solution(manager, routing, solution, data)
     else:
-        print("❌ No feasible solution found")
+        print("No feasible solution found")
 
 
 def print_solution(manager, routing, solution, data):

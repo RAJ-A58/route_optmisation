@@ -3,7 +3,6 @@ from cvrp_max_route_time import solve_cvrp_with_max_time, load_data
 
 DATA_DIR = Path("data/synthetic")
 
-
 def run_all():
     json_files = sorted(DATA_DIR.glob("*.json"))
 

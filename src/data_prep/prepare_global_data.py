@@ -8,8 +8,8 @@ from pathlib import Path
 # ================= CONFIGURATION =================
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "raw" / "MPP & BMC Mcc.xlsx"
-OUTPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data.json"
+INPUT_FILE = PROJECT_ROOT / "data" / "raw" / "Book2.xlsx"
+OUTPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data1.json"
 
 OSRM_URL = "http://router.project-osrm.org/table/v1/driving/"
 CHUNK_SIZE = 50
@@ -24,20 +24,46 @@ DEPOT_COORDINATES = {
     "BMC DHAD":      (20.380343, 75.993664)
 }
 
-# 2. FLEET CONFIGURATION (Swarm Strategy)
+# 2. FLEET CONFIGURATION (Swarm Strategy) - SCALED UP
 FLEET_CONFIG = {
     "MCC Buldhana": [
-        2500, 2500, 2500, 2500, 2500, 
-        2000, 2000, 2000, 2000, 2000, 
-        2000, 1500, 1500, 1500, 1500, 
-        1000, 1000, 1000
+        # Heavy Lift (Increased count)
+        2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500,
+        # Core Swarm (High density)
+        2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 
+        2000, 2000, 
+        # Agile Units
+        1500, 1500, 1500, 1500, 1500, 
+        1000, 1000, 1000, 1000, 1000
     ],
-    "MCC Buttibori": [2500, 2500, 2000, 2000, 2000, 1500, 1500],
-    "MCC Dhanoli":   [2500, 2500, 2000, 2000, 2000, 1500, 1500],
-    "BMC Manapur":   [2500, 2500, 2500, 2000, 2000, 2000, 1500, 1500],
-    "BMC Dahid":     [2000, 2000, 2000, 1500, 1000],
-    "BMC Dhad":      [2000, 2000, 2000, 1500, 1000],
-    "DEFAULT":       [2000, 1500, 1000] 
+    "MCC Buttibori": [
+        2500, 2500, 2500, 2500,     # Increased bulk
+        2000, 2000, 2000, 2000,     # Core
+        1500, 1500, 1500            # Added redundancy
+    ],
+    "MCC Dhanoli": [
+        2500, 2500, 2500, 2500, 
+        2000, 2000, 2000, 2000, 
+        1500, 1500, 1500
+    ],
+    "BMC Manapur": [
+        2500, 2500, 2500, 2500,     # Upgraded from 3 to 4
+        2000, 2000, 2000, 2000, 2000, 
+        1500, 1500, 1500
+    ],
+    "BMC Dahid": [
+        2500, 2500,                 # Introduced 2500s to this node
+        2000, 2000, 2000, 2000, 
+        1500, 1500, 
+        1000, 1000
+    ],
+    "BMC Dhad": [
+        2500, 2500, 
+        2000, 2000, 2000, 2000, 
+        1500, 1500, 
+        1000, 1000
+    ],
+    "DEFAULT": [2000, 2000, 1500, 1500, 1000] 
 }
 
 def normalize_sorted_key(name):

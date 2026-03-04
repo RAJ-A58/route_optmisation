@@ -6,13 +6,13 @@ from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 # CONFIGURATION 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data.json"
+INPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data1.json"
 
 # Optimization Settings
 TIME_LIMIT_SECONDS = 180
 
 # UPDATED CONSTRAINTS
-AVERAGE_SPEED_KMPH = 100.0   # Vehicle speed (35 or 40 km/h)
+AVERAGE_SPEED_KMPH = 85.0   # Vehicle speed (35 or 40 km/h)
 SERVICE_TIME_MINS = 0.0    # loading time per customer
 MAX_ROUTE_TIME_HOURS = 10.0  #hours per vehicle shift
 

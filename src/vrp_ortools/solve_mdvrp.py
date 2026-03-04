@@ -7,12 +7,13 @@ from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 # Dynamic path to find the file we just created
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
-INPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data.json"
+INPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data1.json"
 
 # Optimization Time Limit (in seconds). Increase for better solutions.
 TIME_LIMIT_SECONDS = 500
 
 def solve_mdvrp():
+    
     if not INPUT_FILE.exists():
         print(f"ERROR: Data file not found at {INPUT_FILE}")
         print("Run 'src/data_prep/prepare_global_data.py' first.")

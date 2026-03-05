@@ -4,9 +4,9 @@ from pathlib import Path
 
 # ================= CONFIGURATION =================
 # Set these to match your FAILED run
-AVERAGE_SPEED_KMPH = 50.0 
-MAX_ROUTE_TIME_HOURS = 5.0
-INPUT_FILE_PATH = "data/processed/global_optimization_data.json"
+AVERAGE_SPEED_KMPH = 40.0 
+MAX_ROUTE_TIME_HOURS = 4.0
+INPUT_FILE_PATH = "data/processed/global_optimization_data1.json"
 # =================================================
 
 def check_feasibility():

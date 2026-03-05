@@ -12,9 +12,9 @@ INPUT_FILE = PROJECT_ROOT / "data" / "processed" / "global_optimization_data1.js
 TIME_LIMIT_SECONDS = 180
 
 # UPDATED CONSTRAINTS
-AVERAGE_SPEED_KMPH = 40.0   # Vehicle speed (35 or 40 km/h)
+AVERAGE_SPEED_KMPH = 40.0   # Vehicle speed
 SERVICE_TIME_MINS = 0.0    # loading time per customer
-MAX_ROUTE_TIME_HOURS = 4.0  #hours per vehicle shift
+MAX_ROUTE_TIME_HOURS = 4.0  # hours per vehicle shift
 
 SPEED_METERS_PER_MIN = (AVERAGE_SPEED_KMPH * 1000) / 60.0
 MAX_ROUTE_TIME_MINS = int(MAX_ROUTE_TIME_HOURS * 60)
@@ -39,7 +39,6 @@ def solve_mdvrp():
     print(f" - Total Locations: {num_nodes}")
     print(f" - Total Vehicles:  {num_vehicles}")
     print(f" - Max Route Time:  {MAX_ROUTE_TIME_HOURS} hours")
-    print(f" - Service Time:    {SERVICE_TIME_MINS} mins/stop")
     print(f" - Avg Speed:       {AVERAGE_SPEED_KMPH} km/h")
 
     # 2. Create Routing Manager
@@ -69,30 +68,30 @@ def solve_mdvrp():
     def time_callback(from_index, to_index):
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        
-        # Get distance in meters
         dist = data["distance_matrix"][from_node][to_node]
-        
-        # Calculate Travel Time (minutes) = Distance / Speed
         travel_time = dist / SPEED_METERS_PER_MIN
-        
-        # Add Service Time (only if it's a customer, i.e., demand > 0)
         is_customer = data["demands"][from_node] > 0
         service_time = SERVICE_TIME_MINS if is_customer else 0
-        
         return int(travel_time + service_time)
 
     time_callback_index = routing.RegisterTransitCallback(time_callback)
-    
     routing.AddDimension(
         time_callback_index,
-        30,  # Allow waiting time (slack) up to 30 mins
-        MAX_ROUTE_TIME_MINS,  # Max time per vehicle (4 hours = 240 mins)
-        False,  # Don't force start to zero
+        30,  
+        MAX_ROUTE_TIME_MINS,  
+        False,  
         "Time"
     )
 
-    # 6. Search Parameters
+    # === NEW: 6. ALLOW SKIPPING NODES (DISJUNCTIONS) ===
+    # We apply a penalty to every node that is NOT a start or end (depot)
+    # This prevents the "No solution found" error.
+    penalty = 1_000_000 # High cost to skip a location
+    for node in range(num_nodes):
+        if node not in starts and node not in ends:
+            routing.AddDisjunction([manager.NodeToIndex(node)], penalty)
+
+    # 7. Search Parameters
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
@@ -105,11 +104,11 @@ def solve_mdvrp():
     print(f"\nStarting Optimization (Time Limit: {TIME_LIMIT_SECONDS}s)...")
     solution = routing.SolveWithParameters(search_parameters)
 
-    # 7. Output
+    # 8. Output
     if solution:
         print_solution(data, manager, routing, solution)
     else:
-        print("No solution found! Constraints might be too tight (Reduce Service Time or Increase Max Time).")
+        print("No solution found! Even with penalties, the solver failed.")
 
 def print_solution(data, manager, routing, solution):
     print("\n" + "="*60)
@@ -121,10 +120,20 @@ def print_solution(data, manager, routing, solution):
     total_load = 0
     total_time = 0
     vehicles_used = 0
+    dropped_nodes = []
+    included_nodes_count = 0
     
+    # Identify Dropped Nodes
+    for node in range(len(data["distance_matrix"])):
+        if routing.IsStart(node) or routing.IsEnd(node):
+            continue
+        if solution.Value(routing.NextVar(manager.NodeToIndex(node))) == manager.NodeToIndex(node):
+            dropped_nodes.append(data["names"][node])
+        else:
+            included_nodes_count += 1
+
     for vehicle_id in range(data["num_vehicles"]):
         index = routing.Start(vehicle_id)
-        
         if routing.IsEnd(solution.Value(routing.NextVar(index))):
             continue
 
@@ -144,13 +153,9 @@ def print_solution(data, manager, routing, solution):
             node_index = manager.IndexToNode(index)
             name = data["names"][node_index]
             demand = data["demands"][node_index]
-            
-            # Get Time from Dimension
-            time_var = time_dimension.CumulVar(index)
-            time_val = solution.Value(time_var)
+            time_val = solution.Value(time_dimension.CumulVar(index))
             
             route_load += demand
-            
             if demand > 0:
                 route_nodes.append(f"{name}({demand}L, {time_val}m)")
             else:
@@ -161,22 +166,29 @@ def print_solution(data, manager, routing, solution):
             route_dist += routing.GetArcCostForVehicle(previous_index, index, vehicle_id)
 
         # End Node
-        time_var = time_dimension.CumulVar(index)
-        time_val = solution.Value(time_var)
-        node_index = manager.IndexToNode(index)
-        route_nodes.append(f"[{data['names'][node_index]}]")
+        time_val = solution.Value(time_dimension.CumulVar(index))
+        route_nodes.append(f"[{data['names'][manager.IndexToNode(index)]}]")
         
         print(" -> ".join(route_nodes))
-        print(f"   Metrics: Load {route_load}/{capacity} L | Dist: {route_dist/1000:.1f} km | Time: {time_val/60:.1f} hrs")
+        print(f"   Metrics: Load {route_load}/{capacity} L | Dist: {route_dist/1000:.1f} km | Time: {time_val/60:.2f} hrs")
         
         total_dist += route_dist
         total_load += route_load
         total_time += time_val
 
+    # Print Dropped Locations
+    if dropped_nodes:
+        print("\n" + "!"*60)
+        print(f"DROPPED LOCATIONS ({len(dropped_nodes)})")
+        print("The following locations could NOT fit in the 4-hour window:")
+        print(", ".join(dropped_nodes))
+        print("!"*60)
+
     print("\n" + "="*60)
     print("GLOBAL SUMMARY")
     print("-" * 60)
     print(f"Total Vehicles Used: {vehicles_used} / {data['num_vehicles']}")
+    print(f"Locations Covered:   {included_nodes_count} / {len(data['names']) - len(data['starts'])}")
     print(f"Total Distance:      {total_dist/1000:.2f} km")
     print(f"Total Milk Collected:{total_load} L")
     print(f"Total Time Spent:    {total_time/60:.2f} hours")

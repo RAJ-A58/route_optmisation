@@ -32,3 +32,16 @@ This repository documents a 30-day development journey focused on solving comple
 │   └── vrp_ortools/            # Core optimization scripts (e.g., solve_mdvrp.py)
 ├── requirements.txt            # Project dependencies
 └── README.md
+---
+
+## 🚦 Getting Started
+
+### 1. Install Dependencies
+Ensure you have Python 3.8+ installed, then run:
+```bash
+pip install -r requirements.txt
+
+python src/data_prep/prepare_global_data.py
+
+python src/vrp_ortools/solve_mdvrp.py
+

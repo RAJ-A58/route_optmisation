@@ -24,47 +24,24 @@ DEPOT_COORDINATES = {
     "BMC DHAD":      (20.380343, 75.993664)
 }
 
-# 2. FLEET CONFIGURATION (Swarm Strategy) - SCALED UP
-FLEET_CONFIG = {
-    "MCC Buldhana": [
-        # Heavy Lift (Increased count)
-        2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500,
-        # Core Swarm (High density)
-        2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 
-        2000, 2000, 
-        # Agile Units
-        1500, 1500, 1500, 1500, 1500, 
-        1000, 1000, 1000, 1000, 1000
-    ],
-    "MCC Buttibori": [
-        2500, 2500, 2500, 2500,     # Increased bulk
-        2000, 2000, 2000, 2000,     # Core
-        1500, 1500, 1500            # Added redundancy
-    ],
-    "MCC Dhanoli": [
-        2500, 2500, 2500, 2500, 
-        2000, 2000, 2000, 2000, 
-        1500, 1500, 1500
-    ],
-    "BMC Manapur": [
-        2500, 2500, 2500, 2500,     # Upgraded from 3 to 4
-        2000, 2000, 2000, 2000, 2000, 
-        1500, 1500, 1500
-    ],
-    "BMC Dahid": [
-        2500, 2500,                 # Introduced 2500s to this node
-        2000, 2000, 2000, 2000, 
-        1500, 1500, 
-        1000, 1000
-    ],
-    "BMC Dhad": [
-        2500, 2500, 
-        2000, 2000, 2000, 2000, 
-        1500, 1500, 
-        1000, 1000
-    ],
-    "DEFAULT": [2000, 2000, 1500, 1500, 1000] 
+# 2. HETEROGENEOUS FLEET CONFIGURATION
+# Define 3 types of vehicles with different capacities, fixed daily costs, and per-km costs.
+# You can adjust these costs based on your real-world business constraints.
+VEHICLE_TYPES = {
+    # Typical 10-12 Wheeler (Tata Signa / BharatBenz)
+    "Heavy":  {"capacity": 25000, "fixed_cost": 25000, "cost_per_km": 55},
+    
+    # Typical 6-Wheeler / ICV (Eicher Pro / Tata 407)
+    "Medium": {"capacity": 7000,  "fixed_cost": 15000, "cost_per_km": 28},
+    
+    # Typical SCV / "Chhota Hathi" (Tata Ace / Mahindra Jeeto)
+    "Light":  {"capacity": 1000,  "fixed_cost": 5000, "cost_per_km": 15}
 }
+
+# Define the maximum available vehicles of EACH type at EACH depot
+# Keep this pool large enough so the solver doesn't fail due to lack of vehicles.
+# The solver will only use what it needs to minimize costs.
+MAX_VEHICLES_PER_TYPE_PER_DEPOT = 10 
 
 def normalize_sorted_key(name):
     """Turns 'Dahid Bmc' -> 'BMC DAHID' for sorting/matching."""
@@ -173,9 +150,6 @@ def prepare_global_data():
             skipped_count += 1
             continue
 
-        # 2. (REMOVED) The aggressive "Name contains BMC/MCC" check is GONE.
-        # Bmc Beena and Bmc Dhanala will now be added as normal customers.
-
         nodes.append({"name": raw_name, "lat": float(row["latitude"]), "lon": float(row["longitude"]), "demand": int(qty), "type": "customer"})
         count_cust += 1
 
@@ -189,33 +163,41 @@ def prepare_global_data():
         print("   [FAIL] Matrix generation failed.")
         return
 
-    print("--- Assigning Fleet ---")
+    print("--- Assigning Heterogeneous Fleet Pool ---")
     starts = []
     ends = []
     capacities = []
+    fixed_costs = []
+    var_costs = []
+    vehicle_labels = []
 
+    # Assign a pool of available vehicles to every depot
     for d_idx in depot_indices:
-        real_name = depot_real_names[d_idx]
-        fleet = FLEET_CONFIG.get(real_name)
-        if not fleet:
-             for key in FLEET_CONFIG:
-                 if normalize_sorted_key(key) == normalize_sorted_key(real_name): 
-                     fleet = FLEET_CONFIG[key]
-                     break
-        if not fleet: fleet = FLEET_CONFIG["DEFAULT"]
-
-        for cap in fleet:
-            starts.append(d_idx)
-            ends.append(d_idx)
-            capacities.append(cap)
+        for v_type, v_info in VEHICLE_TYPES.items():
+            for _ in range(MAX_VEHICLES_PER_TYPE_PER_DEPOT):
+                starts.append(d_idx)
+                ends.append(d_idx)
+                capacities.append(v_info["capacity"])
+                fixed_costs.append(v_info["fixed_cost"])
+                var_costs.append(v_info["cost_per_km"])
+                vehicle_labels.append(v_type)
     
-    print(f"   Total Fleet Size: {len(capacities)} Vehicles")
+    print(f"   Total Fleet Pool Size: {len(capacities)} Vehicles available")
 
     output = {
-        "distance_matrix": matrix, "demands": [n["demand"] for n in nodes],
-        "vehicle_capacities": capacities, "num_vehicles": len(starts),
-        "starts": starts, "ends": ends,
-        "names": [n["name"] for n in nodes], "locations": [{"lat": n["lat"], "lon": n["lon"]} for n in nodes]
+        "distance_matrix": matrix, 
+        "demands": [n["demand"] for n in nodes],
+        "vehicle_capacities": capacities, 
+        "num_vehicles": len(starts),
+        "starts": starts, 
+        "ends": ends,
+        "names": [n["name"] for n in nodes], 
+        "locations": [{"lat": n["lat"], "lon": n["lon"]} for n in nodes],
+        
+        # New cost fields
+        "fixed_costs": fixed_costs,
+        "var_costs": var_costs,
+        "vehicle_labels": vehicle_labels
     }
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)

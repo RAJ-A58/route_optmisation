@@ -6,6 +6,7 @@ __pycache__/
 data/raw/*
 data/input/*
 results/*
+papers/*
 
 .env
 .ipynb_checkpoints/

@@ -15,7 +15,6 @@ TIME_LIMIT_SECONDS = 180
 AVERAGE_SPEED_KMPH = 40.0   # Vehicle speed
 SERVICE_TIME_MINS = 0.0    # loading time per customer
 MAX_ROUTE_TIME_HOURS = 4.0  # hours per vehicle shift
-
 SPEED_METERS_PER_MIN = (AVERAGE_SPEED_KMPH * 1000) / 60.0
 MAX_ROUTE_TIME_MINS = int(MAX_ROUTE_TIME_HOURS * 60)
 
@@ -34,10 +33,15 @@ def solve_mdvrp():
     starts = data["starts"]
     ends = data["ends"]
     capacities = data["vehicle_capacities"]
+    
+    # Extract heterogeneous fleet data
+    fixed_costs = data.get("fixed_costs", [0] * num_vehicles)
+    var_costs = data.get("var_costs", [1] * num_vehicles)
+    vehicle_labels = data.get("vehicle_labels", ["Unknown"] * num_vehicles)
 
     print(f"Problem Stats:")
     print(f" - Total Locations: {num_nodes}")
-    print(f" - Total Vehicles:  {num_vehicles}")
+    print(f" - Total Vehicles:  {num_vehicles} (Heterogeneous Pool)")
     print(f" - Max Route Time:  {MAX_ROUTE_TIME_HOURS} hours")
     print(f" - Avg Speed:       {AVERAGE_SPEED_KMPH} km/h")
 
@@ -45,14 +49,25 @@ def solve_mdvrp():
     manager = pywrapcp.RoutingIndexManager(num_nodes, num_vehicles, starts, ends)
     routing = pywrapcp.RoutingModel(manager)
 
-    # 3. Distance Callback (Cost)
-    def distance_callback(from_index, to_index):
-        from_node = manager.IndexToNode(from_index)
-        to_node = manager.IndexToNode(to_index)
-        return data["distance_matrix"][from_node][to_node]
-
-    transit_callback_index = routing.RegisterTransitCallback(distance_callback)
-    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+    # 3. Vehicle-Specific Cost Callbacks (HETEROGENEOUS FLEET)
+    # Replaces the generic distance_callback
+    for v in range(num_vehicles):
+        def create_cost_callback(vehicle_id):
+            def cost_callback(from_index, to_index):
+                from_node = manager.IndexToNode(from_index)
+                to_node = manager.IndexToNode(to_index)
+                distance_m = data["distance_matrix"][from_node][to_node]
+                
+                # Calculate cost: km * cost_per_km
+                travel_cost = int((distance_m / 1000.0) * var_costs[vehicle_id])
+                return travel_cost
+            return cost_callback
+        
+        callback_index = routing.RegisterTransitCallback(create_cost_callback(v))
+        routing.SetArcCostEvaluatorOfVehicle(callback_index, v)
+        
+        # Apply the fixed cost penalty to discourage using unnecessary vehicles
+        routing.SetFixedCostOfVehicle(fixed_costs[v], v)
 
     # 4. Capacity Dimension
     def demand_callback(from_index):
@@ -77,18 +92,18 @@ def solve_mdvrp():
     time_callback_index = routing.RegisterTransitCallback(time_callback)
     routing.AddDimension(
         time_callback_index,
-        30,  
+        0,  
         MAX_ROUTE_TIME_MINS,  
         False,  
         "Time"
     )
 
-    # === NEW: 6. ALLOW SKIPPING NODES (DISJUNCTIONS) ===
-    # We apply a penalty to every node that is NOT a start or end (depot)
-    # This prevents the "No solution found" error.
+    # === 6. ALLOW SKIPPING NODES (DISJUNCTIONS) ===
+    # Apply a penalty to every node that is NOT a start or end (depot)
     penalty = 1_000_000 # High cost to skip a location
     for node in range(num_nodes):
         if node not in starts and node not in ends:
+            # We must use the routing.AddDisjunction method properly
             routing.AddDisjunction([manager.NodeToIndex(node)], penalty)
 
     # 7. Search Parameters
@@ -101,7 +116,7 @@ def solve_mdvrp():
     )
     search_parameters.time_limit.seconds = TIME_LIMIT_SECONDS
 
-    print(f"\nStarting Optimization (Time Limit: {TIME_LIMIT_SECONDS}s)...")
+    print(f"\nStarting Optimization (Minimizing Cost | Time Limit: {TIME_LIMIT_SECONDS}s)...")
     solution = routing.SolveWithParameters(search_parameters)
 
     # 8. Output
@@ -119,7 +134,8 @@ def print_solution(data, manager, routing, solution):
     total_dist = 0
     total_load = 0
     total_time = 0
-    vehicles_used = 0
+    total_operational_cost = 0
+    vehicles_used = {}
     dropped_nodes = []
     included_nodes_count = 0
     
@@ -137,17 +153,22 @@ def print_solution(data, manager, routing, solution):
         if routing.IsEnd(solution.Value(routing.NextVar(index))):
             continue
 
-        vehicles_used += 1
         start_node = manager.IndexToNode(index)
         depot_name = data['names'][start_node]
         capacity = data['vehicle_capacities'][vehicle_id]
+        
+        v_type = data.get('vehicle_labels', ["Unknown"] * data["num_vehicles"])[vehicle_id]
+        fixed_cost = data.get('fixed_costs', [0] * data["num_vehicles"])[vehicle_id]
+        var_cost = data.get('var_costs', [0] * data["num_vehicles"])[vehicle_id]
+        
+        vehicles_used[v_type] = vehicles_used.get(v_type, 0) + 1
 
-        print(f"\nVehicle {vehicle_id} | Base: {depot_name} | Cap: {capacity}L")
-        print("-" * 50)
+        print(f"\nVehicle {vehicle_id} ({v_type}) | Base: {depot_name} | Cap: {capacity}L")
+        print("-" * 60)
         
         route_nodes = []
         route_load = 0
-        route_dist = 0
+        route_dist_m = 0
         
         while not routing.IsEnd(index):
             node_index = manager.IndexToNode(index)
@@ -163,18 +184,29 @@ def print_solution(data, manager, routing, solution):
             
             previous_index = index
             index = solution.Value(routing.NextVar(index))
-            route_dist += routing.GetArcCostForVehicle(previous_index, index, vehicle_id)
+            
+            # Get actual distance in meters
+            from_node = manager.IndexToNode(previous_index)
+            to_node = manager.IndexToNode(index)
+            route_dist_m += data["distance_matrix"][from_node][to_node]
 
         # End Node
         time_val = solution.Value(time_dimension.CumulVar(index))
         route_nodes.append(f"[{data['names'][manager.IndexToNode(index)]}]")
         
-        print(" -> ".join(route_nodes))
-        print(f"   Metrics: Load {route_load}/{capacity} L | Dist: {route_dist/1000:.1f} km | Time: {time_val/60:.2f} hrs")
+        # Calculate Costs
+        route_dist_km = route_dist_m / 1000.0
+        route_travel_cost = route_dist_km * var_cost
+        route_total_cost = fixed_cost + route_travel_cost
         
-        total_dist += route_dist
+        print(" -> ".join(route_nodes))
+        print(f"   Metrics: Load {route_load}/{capacity} L | Dist: {route_dist_km:.1f} km | Time: {time_val/60:.2f} hrs")
+        print(f"   Cost: ₹{fixed_cost} (Fixed) + ₹{route_travel_cost:.2f} (Travel) = ₹{route_total_cost:.2f}")
+        
+        total_dist += route_dist_m
         total_load += route_load
         total_time += time_val
+        total_operational_cost += route_total_cost
 
     # Print Dropped Locations
     if dropped_nodes:
@@ -185,13 +217,18 @@ def print_solution(data, manager, routing, solution):
         print("!"*60)
 
     print("\n" + "="*60)
-    print("GLOBAL SUMMARY")
+    print("GLOBAL SUMMARY & COST ANALYSIS")
     print("-" * 60)
-    print(f"Total Vehicles Used: {vehicles_used} / {data['num_vehicles']}")
-    print(f"Locations Covered:   {included_nodes_count} / {len(data['names']) - len(data['starts'])}")
+    print(f"Locations Covered:   {included_nodes_count}")
     print(f"Total Distance:      {total_dist/1000:.2f} km")
     print(f"Total Milk Collected:{total_load} L")
     print(f"Total Time Spent:    {total_time/60:.2f} hours")
+    
+    print(f"\nTotal Vehicles Used: {sum(vehicles_used.values())}")
+    for v_type, count in vehicles_used.items():
+        print(f"  - {v_type} Trucks: {count}")
+        
+    print(f"\nTOTAL OPERATIONAL COST: ₹{total_operational_cost:.2f}")
     print("="*60)
 
 if __name__ == "__main__":

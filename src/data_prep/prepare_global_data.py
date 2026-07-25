@@ -15,7 +15,7 @@ OSRM_URL = "http://router.project-osrm.org/table/v1/driving/"
 CHUNK_SIZE = 50
 
 # 1. DEPOT COORDINATES
-DEPOT_COORDINATES = {
+DEPOT_COORDINATES = { 
     "MCC BULDHANA":  (20.977988, 76.192343),
     "MCC BUTTIBORI": (20.942681, 78.945645),
     "MCC DHANOLI":   (21.066017, 78.602454),
@@ -163,7 +163,7 @@ def prepare_global_data():
         print("   [FAIL] Matrix generation failed.")
         return
 
-    print("--- Assigning Heterogeneous Fleet Pool ---")
+    print("Assigning Heterogeneous Fleet Pool")
     starts = []
     ends = []
     capacities = []

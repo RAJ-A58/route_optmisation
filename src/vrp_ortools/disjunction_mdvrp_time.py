@@ -13,7 +13,7 @@ TIME_LIMIT_SECONDS = 180
 
 # UPDATED CONSTRAINTS
 AVERAGE_SPEED_KMPH = 40.0   # Vehicle speed
-SERVICE_TIME_MINS = 0.0    # loading time per customer
+SERVICE_TIME_MINS = 5.0    # loading time per customer
 MAX_ROUTE_TIME_HOURS = 4.0  # hours per vehicle shift
 SPEED_METERS_PER_MIN = (AVERAGE_SPEED_KMPH * 1000) / 60.0
 MAX_ROUTE_TIME_MINS = int(MAX_ROUTE_TIME_HOURS * 60)

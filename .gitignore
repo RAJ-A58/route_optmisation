@@ -10,3 +10,6 @@ papers/*
 
 .env
 .ipynb_checkpoints/
+
+# Ignore zip files containing source backups
+*.zip

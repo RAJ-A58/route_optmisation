@@ -1,38 +1,29 @@
-# Milk Route Optimization: OR-Tools + Machine Learning
+# A Heterogeneous Fleet Approach to the Capacitated Multi-Depot Vehicle Routing Problem with Time Windows for Indian Cooperative Dairy
 
-This repository documents a 30-day development journey focused on solving complex **Vehicle Routing Problems (VRP)** within milk collection logistics. The project bridges the gap between traditional Operations Research (OR) and modern Machine Learning (ML) to maximize fleet efficiency.
+This repository contains the dataset preprocessing pipeline, optimization solver code, and analytical results for the paper submitted to the **11th International Conference on Soft Computing: Theories and Applications (SoCTA 2026)** at SVNIT Surat.
 
----
+## 🚀 Overview
 
-## 🚀 Project Goals
+Milk collection in Indian cooperative dairies is a critical logistical challenge due to product perishability, geographically dispersed collection centers, and strict temporal constraints. This project implements a **Capacitated Multi-Depot Vehicle Routing Problem with Time Windows (CVRPTW)** supporting a heterogeneous vehicle fleet. 
 
-* **Optimization Solvers:** Implement VRP, CVRP (Capacitated), and VRPTW (Time Windows) solutions using **Google OR-Tools**.
-* **Predictive Analytics:** Utilize ML models to forecast location-specific demand and dynamic travel times.
-* **Heuristic Learning:** Integrate Reinforcement Learning (RL) concepts to discover and refine routing heuristics.
-* **Integrated System:** Develop a unified framework where ML predictions directly inform OR-Tools optimization parameters.
-
----
-
-## 🛠️ Technical Features
-
-* **Multi-Depot Support:** Solves routing logic where vehicles start and end at different bases or collection centers.
-* **Capacitated Routing (CVRP):** Manages heterogeneous fleets with varying load capacities and constraints.
-* **Advanced Metaheuristics:** Leverages `GUIDED_LOCAL_SEARCH` and `PATH_CHEAPEST_ARC` to escape local minima and ensure high-quality solutions for large-scale logistics.
-* **Modular Architecture:** Designed for easy integration of time-window constraints (VRPTW) as reliable operating data becomes available.
-
----
+### Key Contributions:
+* **Real-World Road Geometry:** Integrates Google OR-Tools with the Open Source Routing Machine (OSRM) to eliminate Euclidean distance errors, which typically distort Indian rural road logistics by 30-50%.
+* **Heterogeneous Fleet Optimization:** Models 378 collection points using a heterogeneous fleet tailored to Indian rural constraints, reducing daily operational costs by 60.4% compared to a homogeneous heavy-tanker fleet.
+* **Strict Perishability Constraints:** Enforces a 4-hour maximum shift duration using time-dimension constraints and Guided Local Search (GLS) with node disjunctions.
 
 ## 📁 Repository Structure
 
 ```text
-├── data/                       # Processed optimization datasets (JSON/CSV)
-├── notebooks/                  # Step-by-step guides for Python, OR-Tools, and VRP basics
+├── data/                       # Raw and processed optimization datasets (JSON/CSV)
+├── graphs/                     # Generated evaluation plots and figures
+├── results/                    # Optimization outputs, benchmark logs, and sensitivity analysis
 ├── src/
-│   ├── data_prep/              # Tools for distance matrix generation and data cleaning
-│   └── vrp_ortools/            # Core optimization scripts (e.g., solve_mdvrp.py)
+│   ├── data_prep/              # OSRM matrix generation and data cleaning scripts
+│   └── vrp_ortools/            # Core OR-Tools Constraint Programming models
+├── socta_dairy_mdvrp_source/   # LaTeX source code for the SoCTA conference paper
 ├── requirements.txt            # Project dependencies
 └── README.md
----
+```
 
 ## 🚦 Getting Started
 
@@ -40,8 +31,19 @@ This repository documents a 30-day development journey focused on solving comple
 Ensure you have Python 3.8+ installed, then run:
 ```bash
 pip install -r requirements.txt
+```
 
+### 2. Generate Distance Matrix
+Run the data preparation script to generate the real-road distance matrix via OSRM API:
+```bash
 python src/data_prep/prepare_global_data.py
+```
 
+### 3. Run Optimization
+Execute the core OR-Tools solver to generate optimized routes across all depots:
+```bash
 python src/vrp_ortools/solve_mdvrp.py
+```
 
+## 📄 License & Citation
+The code in this repository is available for academic and research purposes. If you build upon this work, please cite our SoCTA 2026 paper appropriately.
